@@ -14,33 +14,37 @@ class CrudRest {
       writable = [],
       readable = [],
       fieldMgmtStrategy = 'omit',
-      methods = {
-        findById: 'findById',
-        find: 'find',
-        findAll: 'findAll',
-        create: 'create',
-        update: 'update',
-        delete: 'delete'
-      }
+      methods = {}
     } = {}) {
-    if (entityName) throw new Error('CrudKoa: ConstructorError: \'entityName\' required')
-    if (entityController) throw new Error('CrudKoa: ConstructorError: \'entityController\' required')
-    // if (databaseMgmtSystem) throw new Error('CrudKoa: ConstructorError: \'databaseMgmtSystem\' required')
+    if (!entityName) throw new Error('CrudKoa: ConstructorError: \'entityName\' required')
+    if (!entityController) throw new Error('CrudKoa: ConstructorError: \'entityController\' required')
+    // if (!databaseMgmtSystem) throw new Error('CrudKoa: ConstructorError: \'databaseMgmtSystem\' required')
 
     this.entityName = entityName
     this.entityControllerUc = upperFirst(entityName)
     this.entityController = entityController
     // this.databaseMgmtSystem = databaseMgmtSystem
 
-    this.methods = methods
+    this.methods = Object.assign(this.defaultMethods, methods)
     this.nextByDefault = nextByDefault
     this.writable = writable
     this.readable = readable
     this.fieldMgmtStrategy = fieldMgmtStrategy
   }
 
+  get defaultMethods () {
+    return {
+      findById: 'findById',
+      find: 'find',
+      findAll: 'findAll',
+      create: 'create',
+      update: 'update',
+      delete: 'delete'
+    }
+  }
+
   makeUrlParamMiddleware () {
-    return async function (id, ctx, next) {
+    return async (id, ctx, next) => {
       const entity = await this.entityController[this.methods.findById](id)
       if (!entity) ctx.throw(404, `${this.entityControllerUc} not found`)
 
@@ -66,9 +70,9 @@ class CrudRest {
     withNext = this.nextByDefault,
     readable = this.readable,
     fieldMgmtStrategy = this.fieldMgmtStrategy
-  }) {
-    return async function (ctx, next) {
-      ctx.body = fieldMgmt[fieldMgmtStrategy](context ? ctx.state[this.entityName] : await this.entityController[this.methods.find](JSON.parse(ctx.request.query)), readable)
+  } = {}) {
+    return async (ctx, next) => {
+      ctx.body = fieldMgmt[fieldMgmtStrategy](context ? ctx.state[this.entityName] : await this.entityController[this.methods.find](ctx.request.query), readable)
       if (withNext) next()
     }
   }
@@ -77,9 +81,9 @@ class CrudRest {
     withNext = this.nextByDefault,
     readable = this.readable,
     fieldMgmtStrategy = this.fieldMgmtStrategy
-  }) {
-    return async function (ctx, next) {
-      const findAllRes = await this.entityController[this.methods.findAll](JSON.parse(ctx.request.query))
+  } = {}) {
+    return async (ctx, next) => {
+      const findAllRes = await this.entityController[this.methods.findAll](ctx.request.query)
 
       ctx.body = findAllRes.map(o => fieldMgmt[fieldMgmtStrategy](o, readable))
       if (withNext) next()
@@ -92,8 +96,8 @@ class CrudRest {
     readable = this.readable,
     writable = this.writable,
     fieldMgmtStrategy = this.fieldMgmtStrategy
-  }) {
-    return async function (ctx, next) {
+  } = {}) {
+    return async (ctx, next) => {
       validation(ctx.request.body)
       const createArg = fieldMgmt[fieldMgmtStrategy](ctx.request.body, writable)
 
@@ -110,8 +114,8 @@ class CrudRest {
     readable = this.readable,
     writable = this.writable,
     fieldMgmtStrategy = this.fieldMgmtStrategy
-  }) {
-    return async function (ctx, next) {
+  } = {}) {
+    return async (ctx, next) => {
       validation(ctx.request.body)
 
       const updateArg = fieldMgmt[fieldMgmtStrategy](ctx.request.body, writable)
@@ -123,8 +127,8 @@ class CrudRest {
     }
   }
 
-  makeDelete ({ withNext = this.nextByDefault }) {
-    return async function (ctx, next) {
+  makeDelete ({ withNext = this.nextByDefault } = {}) {
+    return async (ctx, next) => {
       await this.entityController[this.methods.delete](ctx.state[this.entityName].id)
       ctx.body = { ok: true }
       if (withNext) next()
